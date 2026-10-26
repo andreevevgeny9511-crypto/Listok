@@ -86,7 +86,11 @@
           showSuccess();
         } else {
           // Если окно открыто не как popup — перенаправляем на главную с кодом
-          var mainUrl = window.location.origin + '/?oauth_code=' + encodeURIComponent(code);
+          // Определяем базовый путь (родительскую папку)
+          var pathname = window.location.pathname;
+          var basePath = pathname.substring(0, pathname.lastIndexOf('/'));
+          if (basePath === '') basePath = '';
+          var mainUrl = window.location.origin + basePath + '/?oauth_code=' + encodeURIComponent(code);
           window.location.href = mainUrl;
         }
       })();

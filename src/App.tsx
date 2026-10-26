@@ -43,6 +43,23 @@ function App() {
   const [copiedBlock, setCopiedBlock] = useState<string | null>(null);
   const [expandedExample, setExpandedExample] = useState<string | null>(null);
 
+  // Определяем базовый путь из URL (для сайтов в подпапках)
+  const getBasePath = () => {
+    let pathname = window.location.pathname;
+    // Убираем index.html из конца
+    if (pathname.endsWith("index.html")) {
+      pathname = pathname.slice(0, -"index.html".length);
+    }
+    // Убираем trailing slash
+    if (pathname.endsWith("/")) {
+      pathname = pathname.slice(0, -1);
+    }
+    return pathname;
+  };
+
+  const basePath = getBasePath();
+  const redirectUri = window.location.origin + basePath + "/oauth-callback.html";
+
   // Settings state
   const [settings, setSettings] = useState<ListokSettings>({
     domain: "",
@@ -109,7 +126,6 @@ function App() {
     try {
       // OAuth authorization code flow
       // redirect_uri должен ТОЧНО совпадать с тем, что указано в настройках ListOk CRM
-      const redirectUri = window.location.origin + "/oauth-callback.html";
       // Сохраняем redirect_uri, чтобы использовать его при обмене кода на токен
       localStorage.setItem("listok-redirect-uri", redirectUri);
       const authUrl = `https://${settings.domain}/oauth/authorize?client_id=${encodeURIComponent(settings.clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
@@ -147,7 +163,7 @@ function App() {
   const exchangeCodeForToken = async (code: string, currentSettings?: ListokSettings) => {
     const s = currentSettings || settings;
     // Используем сохранённый redirect_uri (тот, что был при авторизации)
-    const redirectUri = localStorage.getItem("listok-redirect-uri") || (window.location.origin + "/oauth-callback.html");
+    const savedRedirectUri = localStorage.getItem("listok-redirect-uri") || redirectUri;
     try {
       const response = await fetch(`https://${s.domain}/oauth/token`, {
         method: "POST",
@@ -161,7 +177,7 @@ function App() {
           client_id: s.clientId,
           client_secret: s.clientSecret,
           code: code,
-          redirect_uri: redirectUri,
+          redirect_uri: savedRedirectUri,
         }),
       });
 
@@ -175,7 +191,7 @@ function App() {
 
       if (!response.ok) {
         const errorMsg = data?.error_description || data?.message || data?.error || responseText;
-        throw new Error(`${response.status}: ${errorMsg}\n\nОтправленный redirect_uri: ${redirectUri}\n\nУбедитесь, что в настройках ListOk CRM указан ТОЧНО ТАКОЙ ЖЕ URL.`);
+        throw new Error(`${response.status}: ${errorMsg}\n\nОтправленный redirect_uri: ${savedRedirectUri}\n\nУбедитесь, что в настройках ListOk CRM указан ТОЧНО ТАКОЙ ЖЕ URL.`);
       }
 
       const newSettings = {
@@ -697,7 +713,7 @@ function App() {
                   <div className="bg-gray-950 border border-gray-800 rounded p-2 mt-2">
                     <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">📋 Redirect URI для ListOk CRM (скопируйте и вставьте в настройки):</p>
                     <p className="text-xs text-emerald-400 font-mono break-all select-all">
-                      {window.location.origin}/oauth-callback.html
+                      {redirectUri}
                     </p>
                   </div>
                   {window.location.protocol === "http:" && (
