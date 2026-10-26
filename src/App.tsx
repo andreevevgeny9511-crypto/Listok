@@ -857,9 +857,17 @@ function App() {
                   </div>
                 </div>
                 {isConnected && (
-                  <button onClick={handleDisconnect} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors">
-                    Отключить
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => copyToClipboard(settings.token, "full-token")}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                    >
+                      {copiedBlock === "full-token" ? "✓ Скопировано" : "📋 Копировать токен"}
+                    </button>
+                    <button onClick={handleDisconnect} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors">
+                      Отключить
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
