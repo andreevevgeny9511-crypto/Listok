@@ -42,11 +42,6 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedBlock, setCopiedBlock] = useState<string | null>(null);
   const [expandedExample, setExpandedExample] = useState<string | null>(null);
-  
-  // AI Chat state
-  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
 
   // Определяем базовый путь из URL (для сайтов в подпапках)
   const getBasePath = () => {
@@ -241,69 +236,6 @@ function App() {
     setAuthSuccess(false);
   };
 
-  // Gemini AI Chat
-  const sendToGemini = async () => {
-    if (!chatInput.trim() || !settings.geminiApiKey) return;
-    
-    const userMessage = chatInput.trim();
-    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-    setChatInput("");
-    setChatLoading(true);
-
-    try {
-      // Создаём контекст из данных ListOk CRM
-      const contextInfo = settings.token ? `
-Контекст: Пользователь подключён к ListOk CRM (${settings.domain}).
-Доступные инструменты MCP: ${mcpTools.map(t => t.name).join(', ')}.
-Пользователь может запрашивать данные о клиентах, абонементах, занятиях, платежах и т.д.
-` : '';
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${settings.geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `${contextInfo}
-
-Вопрос пользователя: ${userMessage}
-
-Пожалуйста, ответь на русском языке. Если вопрос связан с CRM данными, объясни какие MCP-инструменты можно использовать для получения этой информации.`
-              }]
-            }],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 2048,
-            }
-          })
-        }
-      );
-
-      const data = await response.json();
-      
-      if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: data.candidates[0].content.parts[0].text 
-        }]);
-      } else {
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: 'Извините, не удалось получить ответ. Проверьте API ключ Gemini.' 
-        }]);
-      }
-    } catch (error) {
-      setChatMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}` 
-      }]);
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
   const filteredTools = mcpTools.filter((tool) => {
     const matchesCategory = selectedCategory === "all" || tool.category === selectedCategory;
     const matchesSearch = !searchQuery || tool.name.toLowerCase().includes(searchQuery.toLowerCase()) || tool.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -315,7 +247,7 @@ function App() {
     { id: "tools" as Tab, label: "Инструменты", icon: "🔧" },
     { id: "usage" as Tab, label: "Использование", icon: "💬" },
     { id: "codex" as Tab, label: "Codex & AI", icon: "🤖" },
-    { id: "ai-chat" as Tab, label: "AI Чат", icon: "✨" },
+    { id: "bitrix" as Tab, label: "Битрикс24", icon: "🔗" },
     { id: "server" as Tab, label: "Код сервера", icon: "📝" },
     { id: "webhooks" as Tab, label: "Webhooks", icon: "🔔" },
     { id: "settings" as Tab, label: "Настройки", icon: "⚙️" },
@@ -421,6 +353,42 @@ function App() {
                 </div>
               ))}
             </div>
+
+            {/* Статистика из ListOk CRM */}
+            {isConnected && (
+              <div className="bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 border border-emerald-500/20 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <span className="text-xl">📊</span>
+                    Показатели сегодня
+                  </h3>
+                  <span className="text-xs text-gray-400">
+                    {new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+                    <div className="text-3xl font-bold text-emerald-400 mb-1">—</div>
+                    <div className="text-xs text-gray-400">Новых клиентов</div>
+                  </div>
+                  <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+                    <div className="text-3xl font-bold text-cyan-400 mb-1">—</div>
+                    <div className="text-xs text-gray-400">Посещений сегодня</div>
+                  </div>
+                  <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+                    <div className="text-3xl font-bold text-purple-400 mb-1">—</div>
+                    <div className="text-xs text-gray-400">Занятий сегодня</div>
+                  </div>
+                  <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+                    <div className="text-3xl font-bold text-amber-400 mb-1">—</div>
+                    <div className="text-xs text-gray-400">Платежей сегодня</div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  💡 Данные загружаются автоматически при подключении к AI-агентам
+                </p>
+              </div>
+            )}
 
             <div className="grid md:grid-cols-3 gap-6">
               {[
@@ -889,9 +857,17 @@ function App() {
                   </div>
                 </div>
                 {isConnected && (
-                  <button onClick={handleDisconnect} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors">
-                    Отключить
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => copyToClipboard(settings.token, "full-token")}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                    >
+                      {copiedBlock === "full-token" ? "✓ Скопировано" : "📋 Копировать токен"}
+                    </button>
+                    <button onClick={handleDisconnect} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors">
+                      Отключить
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -1016,47 +992,6 @@ function App() {
               </div>
             </div>
 
-            {/* Gemini API Key */}
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-                ✨ Gemini AI API ключ
-              </h3>
-              <p className="text-gray-400 text-sm mb-5">
-                Для использования AI чата внутри приложения. Получите ключ на{' '}
-                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
-                  aistudio.google.com
-                </a>
-              </p>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-2">API ключ Gemini</label>
-                  <input
-                    type="password"
-                    placeholder="AIza..."
-                    value={settings.geminiApiKey}
-                    onChange={(e) => {
-                      const newSettings = { ...settings, geminiApiKey: e.target.value };
-                      saveSettings(newSettings);
-                    }}
-                    className="w-full px-4 py-2.5 bg-gray-950 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono text-sm"
-                  />
-                </div>
-                {settings.geminiApiKey && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-emerald-400">✓</span>
-                    <span className="text-gray-300">AI чат доступен во вкладке «AI Чат»</span>
-                    <button 
-                      onClick={() => setActiveTab("ai-chat")}
-                      className="text-emerald-400 hover:underline ml-2"
-                    >
-                      Открыть →
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* MCP Config for AI clients */}
             {isConnected && (
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
@@ -1094,92 +1029,115 @@ function App() {
           </div>
         )}
 
-        {/* ==================== AI CHAT ==================== */}
-        {activeTab === "ai-chat" && (
+        {/* ==================== BITRIX24 ==================== */}
+        {activeTab === "bitrix" && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-white">✨ AI Чат с Gemini</h2>
-              <p className="text-gray-400 text-sm mt-1">Задавайте вопросы о ListOk CRM и получайте ответы с помощью AI</p>
+              <h2 className="text-2xl font-bold text-white">🔗 Интеграция с Битрикс24</h2>
+              <p className="text-gray-400 text-sm mt-1">Подключите MCP-сервер к AI-ассистенту Битрикс24</p>
             </div>
 
-            {!settings.geminiApiKey ? (
+            {!isConnected ? (
               <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-6 text-center">
-                <span className="text-4xl mb-3 block">🔑</span>
-                <p className="text-amber-200 font-medium mb-2">Необходимо настроить API ключ Gemini</p>
-                <p className="text-amber-200/70 text-sm mb-4">Получите ключ на <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">aistudio.google.com</a></p>
+                <span className="text-4xl mb-3 block">🔐</span>
+                <p className="text-amber-200 font-medium mb-2">Сначала подключите ListOk CRM</p>
                 <button onClick={() => setActiveTab("settings")} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors">
                   Перейти в настройки
                 </button>
               </div>
             ) : (
-              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col" style={{height: 'calc(100vh - 280px)'}}>
-                {/* Chat messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {chatMessages.length === 0 ? (
-                    <div className="text-center text-gray-500 py-12">
-                      <span className="text-5xl mb-4 block">💬</span>
-                      <p className="text-lg mb-2">Начните диалог с AI</p>
-                      <p className="text-sm">Задайте вопрос о ListOk CRM или попросите помощи с настройкой</p>
-                    </div>
-                  ) : (
-                    chatMessages.map((msg, i) => (
-                      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] rounded-lg px-4 py-3 ${
-                          msg.role === 'user' 
-                            ? 'bg-emerald-500/20 border border-emerald-500/30 text-white' 
-                            : 'bg-gray-800 border border-gray-700 text-gray-100'
-                        }`}>
-                          <div className="text-xs text-gray-400 mb-1">
-                            {msg.role === 'user' ? 'Вы' : 'Gemini AI'}
-                          </div>
-                          <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                  {chatLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+              <>
+                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-emerald-400 text-sm font-medium">✓ Подключено к {settings.domain}</span>
+                  </div>
+                  <p className="text-xs text-gray-400">MCP-сервер готов к подключению к Битрикс24</p>
                 </div>
 
-                {/* Chat input */}
-                <div className="border-t border-gray-800 p-4">
-                  <div className="flex gap-3">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendToGemini()}
-                      placeholder="Задайте вопрос..."
-                      disabled={chatLoading}
-                      className="flex-1 px-4 py-3 bg-gray-950 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
-                    />
-                    <button
-                      onClick={sendToGemini}
-                      disabled={chatLoading || !chatInput.trim()}
-                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-lg transition-colors"
-                    >
-                      {chatLoading ? '...' : 'Отправить'}
-                    </button>
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4">📋 Инструкция по подключению</h3>
+                  
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0">
+                        <span className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold border border-emerald-500/30">1</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-white font-medium text-sm mb-1">Откройте Битрикс24</h4>
+                        <p className="text-gray-400 text-sm">Перейдите в раздел <strong>AI-ассистент</strong> или <strong>CoPilot</strong></p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0">
+                        <span className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold border border-emerald-500/30">2</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-white font-medium text-sm mb-1">Найдите настройки MCP</h4>
+                        <p className="text-gray-400 text-sm">В настройках AI-ассистента найдите раздел <strong>«Подключения MCP»</strong> или <strong>«Внешние инструменты»</strong></p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0">
+                        <span className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold border border-emerald-500/30">3</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-white font-medium text-sm mb-1">Добавьте новый MCP-сервер</h4>
+                        <p className="text-gray-400 text-sm mb-2">Нажмите <strong>«Добавить подключение»</strong> и введите URL вашего MCP-сервера:</p>
+                        <div className="relative group">
+                          <pre className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-xs text-gray-300 font-mono overflow-x-auto">
+{`https://${window.location.host}${basePath}/mcp-server/`}
+                          </pre>
+                          <button
+                            onClick={() => copyToClipboard(`https://${window.location.host}${basePath}/mcp-server/`, "bitrix-url")}
+                            className="absolute top-2 right-2 px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            {copiedBlock === "bitrix-url" ? "✓" : "📋"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0">
+                        <span className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold border border-emerald-500/30">4</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-white font-medium text-sm mb-1">Настройте аутентификацию</h4>
+                        <p className="text-gray-400 text-sm mb-2">Введите токен доступа для аутентификации:</p>
+                        <div className="relative group">
+                          <pre className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-xs text-gray-300 font-mono overflow-x-auto break-all">
+{settings.token}
+                          </pre>
+                          <button
+                            onClick={() => copyToClipboard(settings.token, "bitrix-token")}
+                            className="absolute top-2 right-2 px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            {copiedBlock === "bitrix-token" ? "✓" : "📋"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0">
+                        <span className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold border border-emerald-500/30">5</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-white font-medium text-sm mb-1">Сохраните и проверьте</h4>
+                        <p className="text-gray-400 text-sm">Сохраните настройки и проверьте подключение. AI-ассистент Битрикс24 получит доступ к инструментам ListOk CRM.</p>
+                      </div>
+                    </div>
                   </div>
-                  {chatMessages.length > 0 && (
-                    <button
-                      onClick={() => setChatMessages([])}
-                      className="mt-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                    >
-                      Очистить историю
-                    </button>
-                  )}
                 </div>
-              </div>
+
+                <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4">
+                  <p className="text-sm text-blue-200">
+                    💡 <strong>Важно:</strong> Убедитесь, что ваш сервер доступен из интернета и поддерживает HTTPS. Битрикс24 требует безопасное соединение для подключения внешних MCP-серверов.
+                  </p>
+                </div>
+              </>
             )}
           </div>
         )}
