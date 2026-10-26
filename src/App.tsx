@@ -3,7 +3,7 @@ import { mcpTools, categories, webhookEvents } from "./data/tools";
 import { mcpServerCode } from "./data/serverCode";
 import { usageExamples } from "./data/guides";
 
-type Tab = "overview" | "tools" | "usage" | "codex" | "server" | "webhooks" | "settings" | "ai-chat";
+type Tab = "overview" | "tools" | "usage" | "codex" | "server" | "webhooks" | "settings" | "bitrix";
 
 interface ListokSettings {
   domain: string;
@@ -11,7 +11,6 @@ interface ListokSettings {
   clientSecret: string;
   token: string;
   tokenExpiry: number | null;
-  geminiApiKey: string;
 }
 
 function CodeBlock({ code, id, copiedBlock, onCopy, lang = "bash" }: { code: string; id: string; copiedBlock: string | null; onCopy: (text: string, id: string) => void; lang?: string }) {
@@ -73,7 +72,6 @@ function App() {
     clientSecret: "",
     token: "",
     tokenExpiry: null,
-    geminiApiKey: "",
   });
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
