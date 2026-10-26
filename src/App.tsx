@@ -3,7 +3,7 @@ import { mcpTools, categories, webhookEvents } from "./data/tools";
 import { mcpServerCode } from "./data/serverCode";
 import { usageExamples, deploySteps, codexIntegration } from "./data/guides";
 
-type Tab = "overview" | "tools" | "server" | "usage" | "deploy" | "codex" | "webhooks" | "setup";
+type Tab = "overview" | "tools" | "server" | "usage" | "deploy" | "codex" | "webhooks" | "setup" | "guide";
 
 function CodeBlock({ code, id, copiedBlock, onCopy, lang = "bash" }: { code: string; id: string; copiedBlock: string | null; onCopy: (text: string, id: string) => void; lang?: string }) {
   return (
@@ -29,7 +29,7 @@ function CodeBlock({ code, id, copiedBlock, onCopy, lang = "bash" }: { code: str
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<Tab>("guide");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedBlock, setCopiedBlock] = useState<string | null>(null);
@@ -51,6 +51,7 @@ function App() {
   });
 
   const tabs = [
+    { id: "guide" as Tab, label: "📋 Инструкция", icon: "📋", highlight: true },
     { id: "overview" as Tab, label: "Обзор", icon: "🏠" },
     { id: "tools" as Tab, label: "Инструменты", icon: "🔧" },
     { id: "usage" as Tab, label: "Использование", icon: "💬" },
@@ -85,11 +86,14 @@ function App() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     activeTab === tab.id
-                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      ? (tab as any).highlight
+                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                        : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : (tab as any).highlight
+                      ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
                       : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/50"
                   }`}
                 >
-                  <span className="mr-1">{tab.icon}</span>
                   {tab.label}
                 </button>
               ))}
@@ -103,11 +107,14 @@ function App() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeTab === tab.id
-                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    ? (tab as any).highlight
+                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                      : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : (tab as any).highlight
+                    ? "bg-emerald-500/20 text-emerald-300"
                     : "text-gray-400 hover:text-gray-200 bg-gray-800/50"
                 }`}
               >
-                <span className="mr-1">{tab.icon}</span>
                 {tab.label}
               </button>
             ))}
@@ -757,6 +764,461 @@ function App() {
                     <span className="text-emerald-400 text-sm">💬</span>
                     <span className="text-gray-300 text-sm">{example}</span>
                   </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== GUIDE ==================== */}
+        {activeTab === "guide" && (
+          <div className="space-y-8">
+            {/* Hero */}
+            <div className="bg-gradient-to-br from-emerald-500/10 via-gray-900 to-cyan-500/10 border border-emerald-500/20 rounded-2xl p-8">
+              <div className="flex items-center gap-2 text-emerald-400 text-sm mb-3">
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-xs font-bold">ГЛАВНАЯ ВКЛАДКА</span>
+                <span>•</span>
+                <span>Пошаговая инструкция</span>
+              </div>
+              <h2 className="text-3xl font-bold text-white mb-3">
+                Как скачать, собрать и загрузить MCP-сервер на сервер
+              </h2>
+              <p className="text-gray-300 max-w-3xl">
+                Полная инструкция для сценария: <strong className="text-white">сборка на локальном компьютере → загрузка через файловый менеджер → запуск на сервере</strong>.
+                Не требуется SSH/SCP — всё делаем через графический интерфейс.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+                {[
+                  { step: "1", title: "Скачать", desc: "Код проекта" },
+                  { step: "2", title: "Собрать", desc: "npm install + build" },
+                  { step: "3", title: "Загрузить", desc: "Через файловый менеджер" },
+                  { step: "4", title: "Запустить", desc: "Настроить и стартовать" },
+                ].map((s) => (
+                  <div key={s.step} className="bg-gray-900/60 border border-gray-800 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">{s.step}</span>
+                      <span className="text-white font-semibold text-sm">{s.title}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 ml-8">{s.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ===== ШАГ 1: СКАЧИВАНИЕ ===== */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
+                <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center font-bold">1</span>
+                Скачиваем код проекта
+              </h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Есть два варианта — выберите удобный.
+              </p>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">📦</span>
+                    <h4 className="text-white font-semibold">Вариант A: ZIP-архив</h4>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-3">Если код выложен на GitHub/GitLab — скачайте архив:</p>
+                  <ol className="space-y-2 text-sm text-gray-300">
+                    <li className="flex gap-2"><span className="text-emerald-400">1.</span> Откройте страницу репозитория в браузере</li>
+                    <li className="flex gap-2"><span className="text-emerald-400">2.</span> Нажмите <code className="bg-gray-800 px-1.5 py-0.5 rounded text-xs">Code → Download ZIP</code></li>
+                    <li className="flex gap-2"><span className="text-emerald-400">3.</span> Распакуйте в удобное место, например <code className="bg-gray-800 px-1.5 py-0.5 rounded text-xs">C:\Projects\listok-mcp</code></li>
+                  </ol>
+                </div>
+
+                <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">🔧</span>
+                    <h4 className="text-white font-semibold">Вариант B: Git clone</h4>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-3">Если установлен Git — клонируйте репозиторий:</p>
+                  <CodeBlock
+                    code={`# Откройте терминал / командную строку\ncd C:\\Projects\ngit clone https://github.com/your-org/listok-crm-mcp.git\ncd listok-crm-mcp`}
+                    id="guide-clone"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 text-sm text-blue-200">
+                💡 <strong>Совет:</strong> Если у вас нет репозитория — создайте папку <code className="bg-gray-800 px-1 rounded text-xs">listok-crm-mcp</code> вручную и скопируйте туда код из вкладки «Код сервера» (сохраните как <code className="bg-gray-800 px-1 rounded text-xs">src/index.ts</code>).
+              </div>
+            </div>
+
+            {/* ===== ШАГ 2: СБОРКА ===== */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
+                <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center font-bold">2</span>
+                Собираем проект локально
+              </h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Откройте терминал (cmd / PowerShell / Terminal) в папке проекта и выполните команды.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">2.1 — Установка зависимостей</div>
+                  <CodeBlock
+                    code={`# Переходим в папку проекта\ncd C:\\Projects\\listok-crm-mcp\n\n# Устанавливаем все зависимости (займёт 1-2 минуты)\nnpm install`}
+                    id="guide-install"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">2.2 — Компиляция TypeScript → JavaScript</div>
+                  <CodeBlock
+                    code={`# Компилируем TypeScript в папку dist/\nnpx tsc\n\n# Проверяем, что файл создан\nls dist/index.js\n# или в Windows:\ndir dist\\index.js`}
+                    id="guide-build"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">2.3 — Локальная проверка (опционально)</div>
+                  <CodeBlock
+                    code={`# Задаём переменные окружения и запускаем\n# Linux/macOS:\nLISTOK_DOMAIN=yourdomain.listokcrm.ru LISTOK_TOKEN=your_token node dist/index.js\n\n# Windows (PowerShell):\n$env:LISTOK_DOMAIN="yourdomain.listokcrm.ru"\n$env:LISTOK_TOKEN="your_token"\nnode dist/index.js\n\n# Windows (cmd):\nset LISTOK_DOMAIN=yourdomain.listokcrm.ru\nset LISTOK_TOKEN=your_token\nnode dist/index.js`}
+                    id="guide-local-run"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                  <p className="text-xs text-gray-400 mt-2">Если видите <code className="bg-gray-800 px-1 rounded text-emerald-400">ListOk CRM MCP Server запущен</code> — всё работает. Нажмите <code className="bg-gray-800 px-1 rounded">Ctrl+C</code> для остановки.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ===== ШАГ 3: ЧТО ЗАГРУЖАТЬ ===== */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
+                <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center font-bold">3</span>
+                Определяем, что загружать на сервер
+              </h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Структура проекта после сборки. На сервер нужно загрузить <strong className="text-white">только то, что выделено зелёным</strong>.
+              </p>
+
+              <div className="bg-gray-950 border border-gray-800 rounded-lg p-4 font-mono text-sm">
+                <div className="space-y-1">
+                  <div className="text-gray-400">listok-crm-mcp/</div>
+                  <div className="ml-4 text-gray-500">├── 📁 node_modules/ <span className="text-gray-600 text-xs">← ❌ НЕ загружаем (установим на сервере)</span></div>
+                  <div className="ml-4 text-gray-500">├── 📁 src/ <span className="text-gray-600 text-xs">← ❌ не обязательно</span></div>
+                  <div className="ml-4 text-emerald-400">├── 📁 <strong>dist/</strong> <span className="text-gray-600 text-xs">← ✅ обязательно (скомпилированный код)</span></div>
+                  <div className="ml-4 text-emerald-400">├── 📄 <strong>package.json</strong> <span className="text-gray-600 text-xs">← ✅ обязательно</span></div>
+                  <div className="ml-4 text-emerald-400">├── 📄 <strong>package-lock.json</strong> <span className="text-gray-600 text-xs">← ✅ обязательно</span></div>
+                  <div className="ml-4 text-gray-500">├── 📄 tsconfig.json <span className="text-gray-600 text-xs">← не нужно</span></div>
+                  <div className="ml-4 text-gray-500">├── 📄 .gitignore <span className="text-gray-600 text-xs">← не нужно</span></div>
+                  <div className="ml-4 text-gray-500">└── 📄 README.md <span className="text-gray-600 text-xs">← не нужно</span></div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid md:grid-cols-2 gap-3">
+                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
+                  <div className="text-emerald-400 font-semibold text-sm mb-2">✅ Что загружаем:</div>
+                  <ul className="text-xs text-gray-300 space-y-1">
+                    <li>• Папка <code className="bg-gray-800 px-1 rounded">dist/</code> (вся целиком)</li>
+                    <li>• Файл <code className="bg-gray-800 px-1 rounded">package.json</code></li>
+                    <li>• Файл <code className="bg-gray-800 px-1 rounded">package-lock.json</code></li>
+                  </ul>
+                </div>
+                <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
+                  <div className="text-red-400 font-semibold text-sm mb-2">❌ Что НЕ загружаем:</div>
+                  <ul className="text-xs text-gray-300 space-y-1">
+                    <li>• <code className="bg-gray-800 px-1 rounded">node_modules/</code> — установится на сервере</li>
+                    <li>• <code className="bg-gray-800 px-1 rounded">src/</code> — уже скомпилировано</li>
+                    <li>• <code className="bg-gray-800 px-1 rounded">.env</code> — создадим на сервере</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* ===== ШАГ 4: ЗАГРУЗКА ЧЕРЕЗ ФАЙЛОВЫЙ МЕНЕДЖЕР ===== */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
+                <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center font-bold">4</span>
+                Загружаем файлы на сервер через файловый менеджер
+              </h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Выберите ваш способ подключения к серверу:
+              </p>
+
+              <div className="space-y-4">
+                {/* FTP / SFTP */}
+                <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">🔌</span>
+                    <h4 className="text-white font-semibold">Вариант A: FileZilla / WinSCP / Cyberduck (SFTP)</h4>
+                  </div>
+                  <div className="space-y-3 text-sm text-gray-300">
+                    <div className="flex gap-3">
+                      <span className="text-emerald-400 font-bold">1.</span>
+                      <div>
+                        <p>Откройте файловый менеджер (например, <strong>FileZilla</strong>)</p>
+                        <p className="text-xs text-gray-500 mt-1">Скачать: <a href="https://filezilla-project.org/" target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">filezilla-project.org</a></p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="text-emerald-400 font-bold">2.</span>
+                      <div>
+                        <p>Подключитесь к серверу по SFTP:</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-gray-800 rounded p-2"><span className="text-gray-500">Хост:</span> <span className="text-white">IP или домен сервера</span></div>
+                          <div className="bg-gray-800 rounded p-2"><span className="text-gray-500">Порт:</span> <span className="text-white">22 (SFTP)</span></div>
+                          <div className="bg-gray-800 rounded p-2"><span className="text-gray-500">Логин:</span> <span className="text-white">root / ваш пользователь</span></div>
+                          <div className="bg-gray-800 rounded p-2"><span className="text-gray-500">Пароль:</span> <span className="text-white">••••••••</span></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="text-emerald-400 font-bold">3.</span>
+                      <div>
+                        <p>На сервере перейдите в папку <code className="bg-gray-800 px-1.5 py-0.5 rounded text-emerald-400">/opt/listok-crm-mcp/</code></p>
+                        <p className="text-xs text-gray-500 mt-1">Если её нет — создайте через правый клик → «Создать каталог»</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="text-emerald-400 font-bold">4.</span>
+                      <div>
+                        <p>Перетащите с локального компьютера на сервер:</p>
+                        <ul className="mt-1 space-y-0.5 text-xs text-gray-400">
+                          <li>• папку <code className="bg-gray-800 px-1 rounded">dist/</code></li>
+                          <li>• файл <code className="bg-gray-800 px-1 rounded">package.json</code></li>
+                          <li>• файл <code className="bg-gray-800 px-1 rounded">package-lock.json</code></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Web panel */}
+                <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">🌐</span>
+                    <h4 className="text-white font-semibold">Вариант B: Веб-панель хостинга (ISPmanager / cPanel / FastPanel / Plesk)</h4>
+                  </div>
+                  <div className="space-y-3 text-sm text-gray-300">
+                    <div className="flex gap-3">
+                      <span className="text-emerald-400 font-bold">1.</span>
+                      <p>Войдите в веб-панель управления сервером</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="text-emerald-400 font-bold">2.</span>
+                      <p>Откройте <strong>Файловый менеджер</strong> (File Manager)</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="text-emerald-400 font-bold">3.</span>
+                      <p>Перейдите в <code className="bg-gray-800 px-1.5 py-0.5 rounded text-emerald-400">/opt/</code> и создайте папку <code className="bg-gray-800 px-1.5 py-0.5 rounded text-emerald-400">listok-crm-mcp</code></p>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="text-emerald-400 font-bold">4.</span>
+                      <div>
+                        <p>Загрузите файлы через кнопку <strong>«Загрузить» / «Upload»</strong>:</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          💡 Совет: сначала упакуйте <code className="bg-gray-800 px-1 rounded">dist/</code>, <code className="bg-gray-800 px-1 rounded">package.json</code> и <code className="bg-gray-800 px-1 rounded">package-lock.json</code> в ZIP-архив локально, загрузите один файл и распакуйте на сервере.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* mc / sftp via panel */}
+                <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">⌨️</span>
+                    <h4 className="text-white font-semibold">Вариант C: Встроенный файловый менеджер в SSH-терминале (mc)</h4>
+                  </div>
+                  <CodeBlock
+                    code={`# Если есть доступ к терминалу, но хочется GUI:\nssh your-server\nsudo apt install mc -y   # или yum install mc\nmc\n\n# Откроется двухпанельный файловый менеджер.\n# Слева — локальные файлы (через SFTP link), справа — сервер.`}
+                    id="guide-mc"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ===== ШАГ 5: НАСТРОЙКА НА СЕРВЕРЕ ===== */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
+                <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center font-bold">5</span>
+                Настраиваем сервер
+              </h3>
+              <p className="text-gray-400 text-sm mb-4">
+                После загрузки файлов — подключаемся к серверу по SSH (или через веб-консоль хостинга) и выполняем команды.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">5.1 — Установить Node.js (если ещё не установлен)</div>
+                  <CodeBlock
+                    code={`# Проверяем, есть ли Node.js:\nnode -v\n\n# Если нет — устанавливаем Node.js 20:\ncurl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -\nsudo apt-get install -y nodejs\n\n# Проверяем:\nnode -v   # должно быть v20.x.x\nnpm -v`}
+                    id="guide-nodejs"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">5.2 — Установить зависимости на сервере</div>
+                  <CodeBlock
+                    code={`cd /opt/listok-crm-mcp\n\n# Устанавливаем только production-зависимости (быстрее и легче)\nnpm install --production\n\n# Проверяем, что node_modules создан\nls node_modules/@modelcontextprotocol`}
+                    id="guide-server-install"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">5.3 — Создать .env файл с токенами</div>
+                  <CodeBlock
+                    code={`# Создаём .env файл:\nnano /opt/listok-crm-mcp/.env\n\n# Вставляем содержимое:\nLISTOK_DOMAIN=yourdomain.listokcrm.ru\nLISTOK_TOKEN=your_bearer_token_here\n\n# Сохраняем: Ctrl+O, Enter, Ctrl+X\n\n# Защищаем файл от посторонних:\nchmod 600 /opt/listok-crm-mcp/.env`}
+                    id="guide-env"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">5.4 — Проверить запуск вручную</div>
+                  <CodeBlock
+                    code={`cd /opt/listok-crm-mcp\n\n# Загружаем переменные и запускаем:\nset -a && source .env && set +a\nnode dist/index.js\n\n# Должно появиться:\n# ListOk CRM MCP Server запущен\n\n# Останавливаем: Ctrl+C`}
+                    id="guide-manual-run"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ===== ШАГ 6: SYSTEMD ===== */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
+                <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center font-bold">6</span>
+                Делаем автозапуск через systemd
+              </h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Чтобы сервер запускался автоматически при старте системы и перезапускался при сбоях.
+              </p>
+
+              <CodeBlock
+                code={`# Создаём unit-файл:\nsudo nano /etc/systemd/system/listok-mcp.service\n\n# Вставляем:\n[Unit]\nDescription=ListOk CRM MCP Server\nAfter=network.target\n\n[Service]\nType=simple\nWorkingDirectory=/opt/listok-crm-mcp\nEnvironmentFile=/opt/listok-crm-mcp/.env\nExecStart=/usr/bin/node /opt/listok-crm-mcp/dist/index.js\nRestart=always\nRestartSec=5\nStandardError=journal\n\n[Install]\nWantedBy=multi-user.target\n\n# Сохраняем: Ctrl+O, Enter, Ctrl+X\n\n# Активируем и запускаем:\nsudo systemctl daemon-reload\nsudo systemctl enable listok-mcp\nsudo systemctl start listok-mcp\n\n# Проверяем статус:\nsudo systemctl status listok-mcp\n\n# Смотрим логи в реальном времени:\nsudo journalctl -u listok-mcp -f`}
+                id="guide-systemd"
+                copiedBlock={copiedBlock}
+                onCopy={copyToClipboard}
+                lang="bash"
+              />
+            </div>
+
+            {/* ===== ШАГ 7: ПОДКЛЮЧЕНИЕ К AI ===== */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
+                <span className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center font-bold">7</span>
+                Подключаем к Codex / Claude / Cursor
+              </h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Теперь, когда сервер работает на удалённой машине, есть <strong className="text-white">два варианта</strong> подключения.
+              </p>
+
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-emerald-400 font-bold text-sm">ВАРИАНТ A</span>
+                    <span className="text-white font-semibold text-sm">Локальный запуск</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-2">Запустить MCP-сервер на своём компьютере (нужен Node.js локально)</p>
+                  <CodeBlock
+                    code={`{\n  "mcpServers": {\n    "listok-crm": {\n      "command": "node",\n      "args": ["C:\\\\Projects\\\\listok-crm-mcp\\\\dist\\\\index.js"],\n      "env": {\n        "LISTOK_DOMAIN": "yourdomain.listokcrm.ru",\n        "LISTOK_TOKEN": "your_token"\n      }\n    }\n  }\n}`}
+                    id="guide-local-config"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="json"
+                  />
+                </div>
+
+                <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-cyan-400 font-bold text-sm">ВАРИАНТ B</span>
+                    <span className="text-white font-semibold text-sm">Удалённый сервер (SSE)</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-2">Если сервер работает на VPS — добавьте SSE-транспорт (см. вкладку «Codex & AI»)</p>
+                  <CodeBlock
+                    code={`{\n  "mcpServers": {\n    "listok-crm": {\n      "type": "sse",\n      "url": "https://your-server.com:3001/sse"\n    }\n  }\n}`}
+                    id="guide-remote-config"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="json"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p className="text-sm text-blue-200">
+                  📖 <strong>Подробные инструкции</strong> для каждого AI-клиента (Codex CLI, Claude Desktop, Cursor, Copilot, Windsurf) — во вкладке <button onClick={() => setActiveTab("codex")} className="text-emerald-400 hover:underline font-semibold">«Codex & AI»</button>.
+                </p>
+              </div>
+            </div>
+
+            {/* ===== ИТОГОВАЯ ШПАРГАЛКА ===== */}
+            <div className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">📌 Шпаргалка: быстрые команды</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs text-emerald-400 font-bold uppercase mb-2">На локальном компьютере</div>
+                  <CodeBlock
+                    code={`npm install\nnpx tsc\nnode dist/index.js  # проверка`}
+                    id="guide-cheat-local"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-emerald-400 font-bold uppercase mb-2">На сервере</div>
+                  <CodeBlock
+                    code={`cd /opt/listok-crm-mcp\nnpm install --production\nsudo systemctl restart listok-mcp\nsudo journalctl -u listok-mcp -f`}
+                    id="guide-cheat-server"
+                    copiedBlock={copiedBlock}
+                    onCopy={copyToClipboard}
+                    lang="bash"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Troubleshooting */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">🔧 Частые проблемы</h3>
+              <div className="space-y-3">
+                {[
+                  { q: "Ошибка: Cannot find module '@modelcontextprotocol/sdk'", a: "Не установлены зависимости. Выполните `npm install` в папке проекта." },
+                  { q: "Ошибка: LISTOK_DOMAIN is not defined", a: "Не заданы переменные окружения. Проверьте .env файл или env в systemd-юните." },
+                  { q: "Ошибка: API error 401", a: "Неверный токен. Получите новый Bearer-токен через OAuth в панели ListOk CRM." },
+                  { q: "Сервис не стартует (systemd)", a: "Смотрите логи: `sudo journalctl -u listok-mcp -n 50`. Часто — неверный путь к node или dist/index.js." },
+                  { q: "FileZilla не подключается", a: "Убедитесь, что выбран протокол SFTP (не FTP), порт 22, и на сервере разрешено SSH-подключение." },
+                ].map((item, i) => (
+                  <details key={i} className="bg-gray-950 border border-gray-800 rounded-lg overflow-hidden">
+                    <summary className="px-4 py-3 cursor-pointer text-sm text-white hover:bg-gray-800/50 transition-colors flex items-center gap-2">
+                      <span className="text-amber-400">⚠️</span>
+                      <span>{item.q}</span>
+                    </summary>
+                    <div className="px-4 pb-3 pt-1 text-sm text-gray-300 border-t border-gray-800">
+                      → {item.a}
+                    </div>
+                  </details>
                 ))}
               </div>
             </div>
