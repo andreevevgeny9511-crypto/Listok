@@ -146,7 +146,11 @@ function App() {
     try {
       const response = await fetch(`https://${s.domain}/oauth/token`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
         body: JSON.stringify({
           grant_type: "authorization_code",
           client_id: s.clientId,
@@ -156,11 +160,19 @@ function App() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const responseText = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data = { raw: responseText };
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorMsg = data?.error_description || data?.message || data?.error || responseText;
+        throw new Error(`${response.status}: ${errorMsg}`);
+      }
+
       const newSettings = {
         ...s,
         token: data.access_token,
