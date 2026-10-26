@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { mcpTools, categories, webhookEvents } from "./data/tools";
 import { mcpServerCode } from "./data/serverCode";
-import { usageExamples, codexIntegration } from "./data/guides";
+import { usageExamples } from "./data/guides";
 
-type Tab = "overview" | "tools" | "usage" | "codex" | "server" | "webhooks" | "settings";
+type Tab = "overview" | "tools" | "usage" | "codex" | "server" | "webhooks" | "settings" | "ai-chat";
 
 interface ListokSettings {
   domain: string;
@@ -11,6 +11,7 @@ interface ListokSettings {
   clientSecret: string;
   token: string;
   tokenExpiry: number | null;
+  geminiApiKey: string;
 }
 
 function CodeBlock({ code, id, copiedBlock, onCopy, lang = "bash" }: { code: string; id: string; copiedBlock: string | null; onCopy: (text: string, id: string) => void; lang?: string }) {
@@ -42,6 +43,11 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedBlock, setCopiedBlock] = useState<string | null>(null);
   const [expandedExample, setExpandedExample] = useState<string | null>(null);
+  
+  // AI Chat state
+  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
 
   // Определяем базовый путь из URL (для сайтов в подпапках)
   const getBasePath = () => {
@@ -67,6 +73,7 @@ function App() {
     clientSecret: "",
     token: "",
     tokenExpiry: null,
+    geminiApiKey: "",
   });
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -236,6 +243,69 @@ function App() {
     setAuthSuccess(false);
   };
 
+  // Gemini AI Chat
+  const sendToGemini = async () => {
+    if (!chatInput.trim() || !settings.geminiApiKey) return;
+    
+    const userMessage = chatInput.trim();
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setChatInput("");
+    setChatLoading(true);
+
+    try {
+      // Создаём контекст из данных ListOk CRM
+      const contextInfo = settings.token ? `
+Контекст: Пользователь подключён к ListOk CRM (${settings.domain}).
+Доступные инструменты MCP: ${mcpTools.map(t => t.name).join(', ')}.
+Пользователь может запрашивать данные о клиентах, абонементах, занятиях, платежах и т.д.
+` : '';
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${settings.geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `${contextInfo}
+
+Вопрос пользователя: ${userMessage}
+
+Пожалуйста, ответь на русском языке. Если вопрос связан с CRM данными, объясни какие MCP-инструменты можно использовать для получения этой информации.`
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2048,
+            }
+          })
+        }
+      );
+
+      const data = await response.json();
+      
+      if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: data.candidates[0].content.parts[0].text 
+        }]);
+      } else {
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: 'Извините, не удалось получить ответ. Проверьте API ключ Gemini.' 
+        }]);
+      }
+    } catch (error) {
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}` 
+      }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   const filteredTools = mcpTools.filter((tool) => {
     const matchesCategory = selectedCategory === "all" || tool.category === selectedCategory;
     const matchesSearch = !searchQuery || tool.name.toLowerCase().includes(searchQuery.toLowerCase()) || tool.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -247,6 +317,7 @@ function App() {
     { id: "tools" as Tab, label: "Инструменты", icon: "🔧" },
     { id: "usage" as Tab, label: "Использование", icon: "💬" },
     { id: "codex" as Tab, label: "Codex & AI", icon: "🤖" },
+    { id: "ai-chat" as Tab, label: "AI Чат", icon: "✨" },
     { id: "server" as Tab, label: "Код сервера", icon: "📝" },
     { id: "webhooks" as Tab, label: "Webhooks", icon: "🔔" },
     { id: "settings" as Tab, label: "Настройки", icon: "⚙️" },
@@ -510,87 +581,247 @@ function App() {
 
         {/* ==================== CODEX & AI ==================== */}
         {activeTab === "codex" && (
-          <div className="space-y-8">
+          <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-white">🤖 Подключение к AI-агентам</h2>
-              <p className="text-gray-400 text-sm mt-1">Инструкции по подключению через графический интерфейс приложений</p>
+              <h2 className="text-2xl font-bold text-white">🤖 Подключение к AI</h2>
+              <p className="text-gray-400 text-sm mt-1">Выберите AI-клиент и скопируйте готовый конфиг</p>
             </div>
 
-            {!isConnected && (
-              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex items-center gap-3">
-                <span className="text-amber-400 text-xl">⚠️</span>
-                <div className="flex-1">
-                  <p className="text-amber-200 text-sm font-medium">Необходимо подключение к ListOk CRM</p>
-                  <p className="text-amber-200/70 text-xs">Перейдите в <button onClick={() => setActiveTab("settings")} className="text-emerald-400 underline">Настройки</button> для авторизации</p>
-                </div>
+            {!isConnected ? (
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-6 text-center">
+                <span className="text-4xl mb-3 block">🔐</span>
+                <p className="text-amber-200 font-medium mb-2">Сначала подключите ListOk CRM</p>
+                <button onClick={() => setActiveTab("settings")} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors">
+                  Перейти в настройки
+                </button>
               </div>
-            )}
+            ) : (
+              <>
+                {/* Token info */}
+                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-emerald-400 text-sm font-medium">✓ Подключено к {settings.domain}</span>
+                    <button
+                      onClick={() => copyToClipboard(settings.token, "token")}
+                      className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                    >
+                      {copiedBlock === "token" ? "✓ Скопировано" : "📋 Копировать токен"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400">Токен автоматически подставлен в конфиги ниже</p>
+                </div>
 
-            {codexIntegration.sections.map((section, i) => (
-              <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
-                  <span className="text-xl">{section.icon}</span>
-                  {section.title}
-                </h3>
-                <p className="text-gray-400 text-sm mb-5">{section.description}</p>
-
-                <div className="space-y-4">
-                  {section.steps.map((step, si) => (
-                    <div key={si} className="flex gap-4">
-                      <div className="flex-shrink-0">
-                        <span className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold border border-emerald-500/30">
-                          {si + 1}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-white font-medium text-sm mb-1">{step.title}</h4>
-                        <p className="text-gray-400 text-sm mb-2">{step.description}</p>
-                        {step.code && (
-                          <CodeBlock
-                            code={step.code}
-                            id={`codex-${i}-${si}`}
-                            copiedBlock={copiedBlock}
-                            onCopy={copyToClipboard}
-                            lang={step.lang || "text"}
-                          />
-                        )}
+                {/* AI Clients Grid */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  {/* Claude Desktop */}
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-emerald-500/30 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-3xl">🟠</span>
+                      <div>
+                        <h3 className="text-white font-semibold">Claude Desktop</h3>
+                        <p className="text-xs text-gray-400">Лучший UX, нативная поддержка</p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+                    <div className="space-y-2 mb-4">
+                      <p className="text-xs text-gray-400">1. Откройте Claude → Settings → Developer → Edit Config</p>
+                      <p className="text-xs text-gray-400">2. Вставьте конфиг и сохраните</p>
+                      <p className="text-xs text-gray-400">3. Перезапустите Claude Desktop</p>
+                    </div>
+                    <div className="relative group">
+                      <pre className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-xs text-gray-300 font-mono overflow-x-auto max-h-32">
+{JSON.stringify({
+  mcpServers: {
+    "listok-crm": {
+      command: "node",
+      args: ["/path/to/dist/index.js"],
+      env: {
+        LISTOK_DOMAIN: settings.domain,
+        LISTOK_TOKEN: settings.token.substring(0, 20) + "..."
+      }
+    }
+  }
+}, null, 2)}
+                      </pre>
+                      <button
+                        onClick={() => copyToClipboard(JSON.stringify({
+                          mcpServers: {
+                            "listok-crm": {
+                              command: "node",
+                              args: ["/path/to/dist/index.js"],
+                              env: {
+                                LISTOK_DOMAIN: settings.domain,
+                                LISTOK_TOKEN: settings.token
+                              }
+                            }
+                          }
+                        }, null, 2), "claude")}
+                        className="absolute top-2 right-2 px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        {copiedBlock === "claude" ? "✓" : "📋"}
+                      </button>
+                    </div>
+                  </div>
 
-            {/* Comparison table */}
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">📊 Сравнение AI-клиентов</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-gray-500 border-b border-gray-800">
-                      <th className="pb-3 pr-4">Клиент</th>
-                      <th className="pb-3 pr-4">Где настроить</th>
-                      <th className="pb-3">Особенности</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-gray-300">
-                    {[
-                      { name: "Claude Desktop", where: "Claude → Settings → Developer → Edit Config", features: "Нативная поддержка, лучший UX" },
-                      { name: "OpenAI Codex CLI", where: "~/.codex/config.json", features: "Терминал, агентный режим" },
-                      { name: "Cursor IDE", where: "Settings → MCP → Add server", features: "Интеграция в редактор, Cascade" },
-                      { name: "GitHub Copilot", where: ".vscode/mcp.json в проекте", features: "Встроен в VS Code" },
-                      { name: "Windsurf", where: "Settings → MCP → Add MCP Server", features: "Cascade AI" },
-                    ].map((row) => (
-                      <tr key={row.name} className="border-b border-gray-800/50">
-                        <td className="py-3 pr-4 font-medium text-white">{row.name}</td>
-                        <td className="py-3 pr-4 text-gray-400 text-xs">{row.where}</td>
-                        <td className="py-3 text-gray-400 text-xs">{row.features}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  {/* Cursor */}
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-emerald-500/30 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-3xl">⚡</span>
+                      <div>
+                        <h3 className="text-white font-semibold">Cursor IDE</h3>
+                        <p className="text-xs text-gray-400">Интеграция в редактор</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                      <p className="text-xs text-gray-400">1. Откройте Settings → MCP</p>
+                      <p className="text-xs text-gray-400">2. Нажмите «Add new MCP server»</p>
+                      <p className="text-xs text-gray-400">3. Вставьте конфиг</p>
+                    </div>
+                    <div className="relative group">
+                      <pre className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-xs text-gray-300 font-mono overflow-x-auto max-h-32">
+{JSON.stringify({
+  mcpServers: {
+    "listok-crm": {
+      command: "node",
+      args: ["/path/to/dist/index.js"],
+      env: {
+        LISTOK_DOMAIN: settings.domain,
+        LISTOK_TOKEN: settings.token.substring(0, 20) + "..."
+      }
+    }
+  }
+}, null, 2)}
+                      </pre>
+                      <button
+                        onClick={() => copyToClipboard(JSON.stringify({
+                          mcpServers: {
+                            "listok-crm": {
+                              command: "node",
+                              args: ["/path/to/dist/index.js"],
+                              env: {
+                                LISTOK_DOMAIN: settings.domain,
+                                LISTOK_TOKEN: settings.token
+                              }
+                            }
+                          }
+                        }, null, 2), "cursor")}
+                        className="absolute top-2 right-2 px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        {copiedBlock === "cursor" ? "✓" : "📋"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* VS Code / Copilot */}
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-emerald-500/30 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-3xl">🐙</span>
+                      <div>
+                        <h3 className="text-white font-semibold">GitHub Copilot</h3>
+                        <p className="text-xs text-gray-400">Встроен в VS Code</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                      <p className="text-xs text-gray-400">1. Создайте файл .vscode/mcp.json</p>
+                      <p className="text-xs text-gray-400">2. Вставьте конфиг</p>
+                      <p className="text-xs text-gray-400">3. Перезапустите VS Code</p>
+                    </div>
+                    <div className="relative group">
+                      <pre className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-xs text-gray-300 font-mono overflow-x-auto max-h-32">
+{JSON.stringify({
+  servers: {
+    "listok-crm": {
+      type: "stdio",
+      command: "node",
+      args: ["/path/to/dist/index.js"],
+      env: {
+        LISTOK_DOMAIN: settings.domain,
+        LISTOK_TOKEN: settings.token.substring(0, 20) + "..."
+      }
+    }
+  }
+}, null, 2)}
+                      </pre>
+                      <button
+                        onClick={() => copyToClipboard(JSON.stringify({
+                          servers: {
+                            "listok-crm": {
+                              type: "stdio",
+                              command: "node",
+                              args: ["/path/to/dist/index.js"],
+                              env: {
+                                LISTOK_DOMAIN: settings.domain,
+                                LISTOK_TOKEN: settings.token
+                              }
+                            }
+                          }
+                        }, null, 2), "vscode")}
+                        className="absolute top-2 right-2 px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        {copiedBlock === "vscode" ? "✓" : "📋"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Codex CLI */}
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-emerald-500/30 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-3xl">🤖</span>
+                      <div>
+                        <h3 className="text-white font-semibold">OpenAI Codex CLI</h3>
+                        <p className="text-xs text-gray-400">Терминал, агентный режим</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                      <p className="text-xs text-gray-400">1. Установите: npm i -g @openai/codex</p>
+                      <p className="text-xs text-gray-400">2. Создайте ~/.codex/config.json</p>
+                      <p className="text-xs text-gray-400">3. Вставьте конфиг</p>
+                    </div>
+                    <div className="relative group">
+                      <pre className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-xs text-gray-300 font-mono overflow-x-auto max-h-32">
+{JSON.stringify({
+  mcpServers: {
+    "listok-crm": {
+      type: "stdio",
+      command: "node",
+      args: ["/path/to/dist/index.js"],
+      env: {
+        LISTOK_DOMAIN: settings.domain,
+        LISTOK_TOKEN: settings.token.substring(0, 20) + "..."
+      }
+    }
+  }
+}, null, 2)}
+                      </pre>
+                      <button
+                        onClick={() => copyToClipboard(JSON.stringify({
+                          mcpServers: {
+                            "listok-crm": {
+                              type: "stdio",
+                              command: "node",
+                              args: ["/path/to/dist/index.js"],
+                              env: {
+                                LISTOK_DOMAIN: settings.domain,
+                                LISTOK_TOKEN: settings.token
+                              }
+                            }
+                          }
+                        }, null, 2), "codex")}
+                        className="absolute top-2 right-2 px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        {copiedBlock === "codex" ? "✓" : "📋"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Important note */}
+                <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4">
+                  <p className="text-sm text-blue-200">
+                    💡 <strong>Важно:</strong> Замените <code className="bg-gray-800 px-1 rounded text-xs">/path/to/dist/index.js</code> на реальный путь к MCP-серверу на вашем компьютере
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -787,6 +1018,47 @@ function App() {
               </div>
             </div>
 
+            {/* Gemini API Key */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
+                ✨ Gemini AI API ключ
+              </h3>
+              <p className="text-gray-400 text-sm mb-5">
+                Для использования AI чата внутри приложения. Получите ключ на{' '}
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
+                  aistudio.google.com
+                </a>
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">API ключ Gemini</label>
+                  <input
+                    type="password"
+                    placeholder="AIza..."
+                    value={settings.geminiApiKey}
+                    onChange={(e) => {
+                      const newSettings = { ...settings, geminiApiKey: e.target.value };
+                      saveSettings(newSettings);
+                    }}
+                    className="w-full px-4 py-2.5 bg-gray-950 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono text-sm"
+                  />
+                </div>
+                {settings.geminiApiKey && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-emerald-400">✓</span>
+                    <span className="text-gray-300">AI чат доступен во вкладке «AI Чат»</span>
+                    <button 
+                      onClick={() => setActiveTab("ai-chat")}
+                      className="text-emerald-400 hover:underline ml-2"
+                    >
+                      Открыть →
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* MCP Config for AI clients */}
             {isConnected && (
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
@@ -819,6 +1091,96 @@ function App() {
                 <p className="text-xs text-gray-500 mt-3">
                   📖 Подробные инструкции по подключению — во вкладке <button onClick={() => setActiveTab("codex")} className="text-emerald-400 hover:underline">«Codex & AI»</button>
                 </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==================== AI CHAT ==================== */}
+        {activeTab === "ai-chat" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-white">✨ AI Чат с Gemini</h2>
+              <p className="text-gray-400 text-sm mt-1">Задавайте вопросы о ListOk CRM и получайте ответы с помощью AI</p>
+            </div>
+
+            {!settings.geminiApiKey ? (
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-6 text-center">
+                <span className="text-4xl mb-3 block">🔑</span>
+                <p className="text-amber-200 font-medium mb-2">Необходимо настроить API ключ Gemini</p>
+                <p className="text-amber-200/70 text-sm mb-4">Получите ключ на <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">aistudio.google.com</a></p>
+                <button onClick={() => setActiveTab("settings")} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors">
+                  Перейти в настройки
+                </button>
+              </div>
+            ) : (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col" style={{height: 'calc(100vh - 280px)'}}>
+                {/* Chat messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {chatMessages.length === 0 ? (
+                    <div className="text-center text-gray-500 py-12">
+                      <span className="text-5xl mb-4 block">💬</span>
+                      <p className="text-lg mb-2">Начните диалог с AI</p>
+                      <p className="text-sm">Задайте вопрос о ListOk CRM или попросите помощи с настройкой</p>
+                    </div>
+                  ) : (
+                    chatMessages.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-lg px-4 py-3 ${
+                          msg.role === 'user' 
+                            ? 'bg-emerald-500/20 border border-emerald-500/30 text-white' 
+                            : 'bg-gray-800 border border-gray-700 text-gray-100'
+                        }`}>
+                          <div className="text-xs text-gray-400 mb-1">
+                            {msg.role === 'user' ? 'Вы' : 'Gemini AI'}
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {chatLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Chat input */}
+                <div className="border-t border-gray-800 p-4">
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendToGemini()}
+                      placeholder="Задайте вопрос..."
+                      disabled={chatLoading}
+                      className="flex-1 px-4 py-3 bg-gray-950 border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                    />
+                    <button
+                      onClick={sendToGemini}
+                      disabled={chatLoading || !chatInput.trim()}
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-lg transition-colors"
+                    >
+                      {chatLoading ? '...' : 'Отправить'}
+                    </button>
+                  </div>
+                  {chatMessages.length > 0 && (
+                    <button
+                      onClick={() => setChatMessages([])}
+                      className="mt-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                    >
+                      Очистить историю
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
