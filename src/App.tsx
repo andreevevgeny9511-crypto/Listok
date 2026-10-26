@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { mcpTools, categories, webhookEvents } from "./data/tools";
 import { mcpServerCode } from "./data/serverCode";
 import { usageExamples, codexIntegration } from "./data/guides";
@@ -63,7 +63,28 @@ function App() {
         setSettings(JSON.parse(saved));
       } catch {}
     }
+
+    // Обработка возврата с OAuth через query-параметр (если popup не сработал)
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthCode = urlParams.get("oauth_code");
+    if (oauthCode) {
+      // Убираем параметр из URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Обмениваем код на токен
+      const savedSettings = localStorage.getItem("listok-settings");
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          setSettings(parsed);
+          // Небольшая задержка, чтобы state обновился
+          setTimeout(() => exchangeCodeForTokenRef.current?.(oauthCode, parsed), 100);
+        } catch {}
+      }
+    }
   }, []);
+
+  // Ref для функции обмена кода (чтобы избежать замыкания)
+  const exchangeCodeForTokenRef = useRef<((code: string, currentSettings: ListokSettings) => void) | null>(null);
 
   const saveSettings = (newSettings: ListokSettings) => {
     setSettings(newSettings);
@@ -87,7 +108,7 @@ function App() {
 
     try {
       // OAuth authorization code flow
-      const redirectUri = window.location.origin + "/oauth/callback";
+      const redirectUri = window.location.origin + "/oauth-callback.html";
       const authUrl = `https://${settings.domain}/oauth/authorize?client_id=${encodeURIComponent(settings.clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
       
       // Open OAuth window
@@ -120,27 +141,40 @@ function App() {
     }
   };
 
-  const exchangeCodeForToken = async (code: string) => {
+  const exchangeCodeForToken = async (code: string, currentSettings?: ListokSettings) => {
+    const s = currentSettings || settings;
     try {
-      const response = await fetch(`https://${settings.domain}/oauth/token`, {
+      const response = await fetch(`https://${s.domain}/oauth/token`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
         body: JSON.stringify({
           grant_type: "authorization_code",
-          client_id: settings.clientId,
-          client_secret: settings.clientSecret,
+          client_id: s.clientId,
+          client_secret: s.clientSecret,
           code: code,
-          redirect_uri: window.location.origin + "/oauth/callback",
+          redirect_uri: window.location.origin + "/oauth-callback.html",
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const responseText = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data = { raw: responseText };
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorMsg = data?.error_description || data?.message || data?.error || responseText;
+        throw new Error(`${response.status}: ${errorMsg}`);
+      }
+
       const newSettings = {
-        ...settings,
+        ...s,
         token: data.access_token,
         tokenExpiry: data.expires_in ? Date.now() + data.expires_in * 1000 : null,
       };
@@ -152,6 +186,11 @@ function App() {
       setAuthLoading(false);
     }
   };
+
+  // Сохраняем функцию в ref для доступа из useEffect
+  useEffect(() => {
+    exchangeCodeForTokenRef.current = exchangeCodeForToken;
+  });
 
   // Manual token input
   const handleManualToken = () => {
@@ -648,7 +687,10 @@ function App() {
 
                 <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3">
                   <p className="text-xs text-blue-200">
-                    💡 <strong>Где взять Client ID и Secret?</strong> В панели ListOk CRM: Настройки → Интеграции → API → Создать OAuth-приложение. Redirect URI: <code className="bg-gray-800 px-1 rounded">{window.location.origin}/oauth/callback</code>
+                    💡 <strong>Где взять Client ID и Secret?</strong> В панели ListOk CRM: Настройки → Интеграции → API → Создать OAuth-приложение.
+                  </p>
+                  <p className="text-xs text-blue-200 mt-2">
+                    📋 <strong>Redirect URI:</strong> <code className="bg-gray-800 px-1 rounded break-all">{window.location.origin}/oauth-callback.html</code>
                   </p>
                 </div>
 
