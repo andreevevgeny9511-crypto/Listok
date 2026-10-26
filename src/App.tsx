@@ -43,6 +43,23 @@ function App() {
   const [copiedBlock, setCopiedBlock] = useState<string | null>(null);
   const [expandedExample, setExpandedExample] = useState<string | null>(null);
 
+  // Определяем базовый путь из URL (для сайтов в подпапках)
+  const getBasePath = () => {
+    let pathname = window.location.pathname;
+    // Убираем index.html из конца
+    if (pathname.endsWith("index.html")) {
+      pathname = pathname.slice(0, -"index.html".length);
+    }
+    // Убираем trailing slash
+    if (pathname.endsWith("/")) {
+      pathname = pathname.slice(0, -1);
+    }
+    return pathname;
+  };
+
+  const basePath = getBasePath();
+  const redirectUri = window.location.origin + basePath + "/oauth-callback.html";
+
   // Settings state
   const [settings, setSettings] = useState<ListokSettings>({
     domain: "",
@@ -108,7 +125,9 @@ function App() {
 
     try {
       // OAuth authorization code flow
-      const redirectUri = window.location.origin + "/oauth-callback.html";
+      // redirect_uri должен ТОЧНО совпадать с тем, что указано в настройках ListOk CRM
+      // Сохраняем redirect_uri, чтобы использовать его при обмене кода на токен
+      localStorage.setItem("listok-redirect-uri", redirectUri);
       const authUrl = `https://${settings.domain}/oauth/authorize?client_id=${encodeURIComponent(settings.clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
       
       // Open OAuth window
@@ -143,6 +162,8 @@ function App() {
 
   const exchangeCodeForToken = async (code: string, currentSettings?: ListokSettings) => {
     const s = currentSettings || settings;
+    // Используем сохранённый redirect_uri (тот, что был при авторизации)
+    const savedRedirectUri = localStorage.getItem("listok-redirect-uri") || redirectUri;
     try {
       const response = await fetch(`https://${s.domain}/oauth/token`, {
         method: "POST",
@@ -156,7 +177,7 @@ function App() {
           client_id: s.clientId,
           client_secret: s.clientSecret,
           code: code,
-          redirect_uri: window.location.origin + "/oauth-callback.html",
+          redirect_uri: savedRedirectUri,
         }),
       });
 
@@ -170,7 +191,7 @@ function App() {
 
       if (!response.ok) {
         const errorMsg = data?.error_description || data?.message || data?.error || responseText;
-        throw new Error(`${response.status}: ${errorMsg}`);
+        throw new Error(`${response.status}: ${errorMsg}\n\nОтправленный redirect_uri: ${savedRedirectUri}\n\nУбедитесь, что в настройках ListOk CRM указан ТОЧНО ТАКОЙ ЖЕ URL.`);
       }
 
       const newSettings = {
@@ -685,18 +706,27 @@ function App() {
                   </div>
                 </div>
 
-                <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3">
+                <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 space-y-2">
                   <p className="text-xs text-blue-200">
                     💡 <strong>Где взять Client ID и Secret?</strong> В панели ListOk CRM: Настройки → Интеграции → API → Создать OAuth-приложение.
                   </p>
-                  <p className="text-xs text-blue-200 mt-2">
-                    📋 <strong>Redirect URI:</strong> <code className="bg-gray-800 px-1 rounded break-all">{window.location.origin}/oauth-callback.html</code>
-                  </p>
+                  <div className="bg-gray-950 border border-gray-800 rounded p-2 mt-2">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">📋 Redirect URI для ListOk CRM (скопируйте и вставьте в настройки):</p>
+                    <p className="text-xs text-emerald-400 font-mono break-all select-all">
+                      {redirectUri}
+                    </p>
+                  </div>
+                  {window.location.protocol === "http:" && (
+                    <p className="text-xs text-amber-300 mt-2">
+                      ⚠️ Ваш сайт работает по <strong>HTTP</strong> (без SSL). Убедитесь, что в ListOk CRM указан именно <code className="bg-gray-800 px-1 rounded">http://</code>, а не <code className="bg-gray-800 px-1 rounded">https://</code>.
+                    </p>
+                  )}
                 </div>
 
                 {authError && (
                   <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 text-sm text-red-300">
-                    ❌ {authError}
+                    <div className="font-semibold mb-1">❌ Ошибка авторизации</div>
+                    <pre className="text-xs whitespace-pre-wrap font-mono mt-2 text-red-200">{authError}</pre>
                   </div>
                 )}
                 {authSuccess && (
