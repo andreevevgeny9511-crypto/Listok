@@ -108,7 +108,10 @@ function App() {
 
     try {
       // OAuth authorization code flow
+      // redirect_uri должен ТОЧНО совпадать с тем, что указано в настройках ListOk CRM
       const redirectUri = window.location.origin + "/oauth-callback.html";
+      // Сохраняем redirect_uri, чтобы использовать его при обмене кода на токен
+      localStorage.setItem("listok-redirect-uri", redirectUri);
       const authUrl = `https://${settings.domain}/oauth/authorize?client_id=${encodeURIComponent(settings.clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
       
       // Open OAuth window
@@ -143,6 +146,8 @@ function App() {
 
   const exchangeCodeForToken = async (code: string, currentSettings?: ListokSettings) => {
     const s = currentSettings || settings;
+    // Используем сохранённый redirect_uri (тот, что был при авторизации)
+    const redirectUri = localStorage.getItem("listok-redirect-uri") || (window.location.origin + "/oauth-callback.html");
     try {
       const response = await fetch(`https://${s.domain}/oauth/token`, {
         method: "POST",
@@ -156,7 +161,7 @@ function App() {
           client_id: s.clientId,
           client_secret: s.clientSecret,
           code: code,
-          redirect_uri: window.location.origin + "/oauth-callback.html",
+          redirect_uri: redirectUri,
         }),
       });
 
@@ -170,7 +175,7 @@ function App() {
 
       if (!response.ok) {
         const errorMsg = data?.error_description || data?.message || data?.error || responseText;
-        throw new Error(`${response.status}: ${errorMsg}`);
+        throw new Error(`${response.status}: ${errorMsg}\n\nОтправленный redirect_uri: ${redirectUri}\n\nУбедитесь, что в настройках ListOk CRM указан ТОЧНО ТАКОЙ ЖЕ URL.`);
       }
 
       const newSettings = {
@@ -685,18 +690,27 @@ function App() {
                   </div>
                 </div>
 
-                <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3">
+                <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 space-y-2">
                   <p className="text-xs text-blue-200">
                     💡 <strong>Где взять Client ID и Secret?</strong> В панели ListOk CRM: Настройки → Интеграции → API → Создать OAuth-приложение.
                   </p>
-                  <p className="text-xs text-blue-200 mt-2">
-                    📋 <strong>Redirect URI:</strong> <code className="bg-gray-800 px-1 rounded break-all">{window.location.origin}/oauth-callback.html</code>
-                  </p>
+                  <div className="bg-gray-950 border border-gray-800 rounded p-2 mt-2">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">📋 Redirect URI для ListOk CRM (скопируйте и вставьте в настройки):</p>
+                    <p className="text-xs text-emerald-400 font-mono break-all select-all">
+                      {window.location.origin}/oauth-callback.html
+                    </p>
+                  </div>
+                  {window.location.protocol === "http:" && (
+                    <p className="text-xs text-amber-300 mt-2">
+                      ⚠️ Ваш сайт работает по <strong>HTTP</strong> (без SSL). Убедитесь, что в ListOk CRM указан именно <code className="bg-gray-800 px-1 rounded">http://</code>, а не <code className="bg-gray-800 px-1 rounded">https://</code>.
+                    </p>
+                  )}
                 </div>
 
                 {authError && (
                   <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 text-sm text-red-300">
-                    ❌ {authError}
+                    <div className="font-semibold mb-1">❌ Ошибка авторизации</div>
+                    <pre className="text-xs whitespace-pre-wrap font-mono mt-2 text-red-200">{authError}</pre>
                   </div>
                 )}
                 {authSuccess && (
