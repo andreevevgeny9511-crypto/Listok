@@ -164,20 +164,22 @@ function App() {
     const s = currentSettings || settings;
     // Используем сохранённый redirect_uri (тот, что был при авторизации)
     const savedRedirectUri = localStorage.getItem("listok-redirect-uri") || redirectUri;
+    
     try {
-      const response = await fetch(`https://${s.domain}/oauth/token`, {
+      // Отправляем запрос на серверный PHP-прокси (обходит CORS)
+      const proxyUrl = basePath + "/oauth-proxy.php";
+      
+      const response = await fetch(proxyUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json",
-          "X-Requested-With": "XMLHttpRequest",
         },
         body: JSON.stringify({
-          grant_type: "authorization_code",
+          code: code,
           client_id: s.clientId,
           client_secret: s.clientSecret,
-          code: code,
           redirect_uri: savedRedirectUri,
+          domain: s.domain,
         }),
       });
 
@@ -191,7 +193,11 @@ function App() {
 
       if (!response.ok) {
         const errorMsg = data?.error_description || data?.message || data?.error || responseText;
-        throw new Error(`${response.status}: ${errorMsg}\n\nОтправленный redirect_uri: ${savedRedirectUri}\n\nУбедитесь, что в настройках ListOk CRM указан ТОЧНО ТАКОЙ ЖЕ URL.`);
+        throw new Error(`${response.status}: ${errorMsg}`);
+      }
+
+      if (!data.access_token) {
+        throw new Error("Токен не получен. Ответ: " + JSON.stringify(data));
       }
 
       const newSettings = {
