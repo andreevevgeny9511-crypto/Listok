@@ -108,10 +108,31 @@ function App() {
     localStorage.setItem("listok-settings", JSON.stringify(newSettings));
   };
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedBlock(id);
-    setTimeout(() => setCopiedBlock(null), 2000);
+  const copyToClipboard = async (text: string, id: string) => {
+    try {
+      // Пробуем современный метод
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback для старых браузеров или HTTP
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+        } catch (err) {
+          console.error('Fallback copy failed:', err);
+        }
+        document.body.removeChild(textArea);
+      }
+      setCopiedBlock(id);
+      setTimeout(() => setCopiedBlock(null), 2000);
+    } catch (error) {
+      console.error('Copy failed:', error);
+    }
   };
 
   const handleOAuth = async () => {
