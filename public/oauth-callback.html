@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Авторизация ListOk CRM...</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #030712;
+        color: #f3f4f6;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .container {
+        text-align: center;
+        padding: 2rem;
+        max-width: 400px;
+      }
+      .spinner {
+        width: 48px;
+        height: 48px;
+        border: 3px solid #1f2937;
+        border-top-color: #10b981;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1.5rem;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      h1 { font-size: 1.25rem; margin-bottom: 0.5rem; color: #fff; }
+      p { color: #9ca3af; font-size: 0.875rem; line-height: 1.5; }
+      .success { color: #10b981; }
+      .error { color: #ef4444; }
+      .icon { font-size: 3rem; margin-bottom: 1rem; }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="content">
+      <div class="spinner"></div>
+      <h1>Обработка авторизации...</h1>
+      <p>Пожалуйста, подождите. Это окно можно закрыть.</p>
+    </div>
+
+    <script>
+      (function() {
+        var content = document.getElementById('content');
+        var params = new URLSearchParams(window.location.search);
+        var code = params.get('code');
+        var error = params.get('error');
+        var errorDescription = params.get('error_description');
+
+        function showSuccess() {
+          content.innerHTML =
+            '<div class="icon">✅</div>' +
+            '<h1 class="success">Авторизация успешна!</h1>' +
+            '<p>Токен получен. Можете закрыть это окно и вернуться в приложение.</p>';
+        }
+
+        function showError(message) {
+          content.innerHTML =
+            '<div class="icon">❌</div>' +
+            '<h1 class="error">Ошибка авторизации</h1>' +
+            '<p>' + message + '</p>' +
+            '<p style="margin-top:1rem">Можете закрыть это окно и попробовать снова.</p>';
+        }
+
+        if (error) {
+          showError('ListOk CRM вернул ошибку: ' + (errorDescription || error));
+          if (window.opener) {
+            window.opener.postMessage({ type: 'listok-oauth-error', error: error }, window.location.origin);
+          }
+          return;
+        }
+
+        if (!code) {
+          showError('Код авторизации не найден в URL.');
+          return;
+        }
+
+        // Отправляем код в основное окно приложения
+        if (window.opener) {
+          window.opener.postMessage({ type: 'listok-oauth-callback', code: code }, window.location.origin);
+          showSuccess();
+        } else {
+          // Если окно открыто не как popup — перенаправляем на главную с кодом
+          var mainUrl = window.location.origin + '/?oauth_code=' + encodeURIComponent(code);
+          window.location.href = mainUrl;
+        }
+      })();
+    </script>
+  </body>
+</html>
