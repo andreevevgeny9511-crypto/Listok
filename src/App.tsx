@@ -201,7 +201,7 @@ function App() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-white">ListOk CRM</h1>
+                <h1 className="text-lg font-bold text-white">ТУРНИКС & ListOk CRM</h1>
                 <p className="text-xs text-gray-400 -mt-0.5">MCP Server</p>
               </div>
               {isConnected && (
@@ -257,8 +257,7 @@ function App() {
                 Model Context Protocol
               </div>
               <h2 className="text-4xl font-bold text-white mb-4">
-                MCP сервер для{" "}
-                <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">ListOk CRM</span>
+                <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">ТУРНИКС & ListOk CRM</span>
               </h2>
               <p className="text-lg text-gray-400 max-w-2xl mx-auto">
                 Полноценный MCP-сервер, предоставляющий AI-ассистентам доступ к API ListOk CRM.
@@ -752,7 +751,7 @@ function App() {
       <footer className="border-t border-gray-800 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between text-sm text-gray-500">
-            <p>ListOk CRM MCP Server • API v2</p>
+            <p>ТУРНИКС & ListOk CRM • MCP Server • API v2</p>
             <a href="https://api.listokcrm.ru/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 transition-colors">
               API Документация →
             </a>
